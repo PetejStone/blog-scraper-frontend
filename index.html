@@ -31,6 +31,8 @@
   #status { margin-top: 18px; font-size: 0.85rem; color: #94a3b8; min-height: 20px; }
   #progress-bar-wrap { background: #0f1117; border-radius: 6px; height: 6px; margin-top: 10px; overflow: hidden; display: none; }
   #progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #6ee7f7, #a78bfa); transition: width 0.3s; }
+  #progress-bar.indeterminate { width: 40%; animation: indeterminate 1.4s infinite ease-in-out; }
+  @keyframes indeterminate { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
   #log { margin-top: 14px; background: #0f1117; border-radius: 8px; padding: 12px; font-size: 0.75rem; color: #64748b; max-height: 160px; overflow-y: auto; display: none; font-family: monospace; }
   #results { margin-top: 20px; display: none; }
   #results h2 { font-size: 1rem; color: #a78bfa; margin-bottom: 12px; }
@@ -111,9 +113,15 @@
   function setStatus(msg) { document.getElementById("status").textContent = msg; }
 
   function setProgress(pct) {
-    if (pct === null) return;
-    document.getElementById("progress-bar-wrap").style.display = "block";
-    document.getElementById("progress-bar").style.width = Math.min(100, pct) + "%";
+    const wrap = document.getElementById("progress-bar-wrap");
+    const bar = document.getElementById("progress-bar");
+    wrap.style.display = "block";
+    if (pct === null) {
+      bar.classList.add("indeterminate");
+    } else {
+      bar.classList.remove("indeterminate");
+      bar.style.width = Math.min(100, pct) + "%";
+    }
   }
 
   async function startScrape() {
@@ -169,7 +177,14 @@
           if (event.type === "log") log(event.message);
           if (event.type === "progress") {
             setStatus(`Crawling... ${event.crawled} pages | ${event.found} posts found | Queue: ${event.queued}`);
-            if (maxPages) setProgress((event.crawled / maxPages) * 100);
+            if (maxPages) {
+              setProgress((event.crawled / maxPages) * 100);
+            } else if (event.found > 0) {
+              const total = event.crawled + event.queued;
+              setProgress((event.crawled / total) * 100);
+            } else {
+              setProgress(null);
+            }
           }
           if (event.type === "done") {
             allPosts = event.posts;
